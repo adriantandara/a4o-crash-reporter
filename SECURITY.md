@@ -23,6 +23,16 @@ Aplicația rulează pe PC-ul jucătorului, deci poate fi decompilată sau modifi
   Fișierele se salvează sub nume generate de server și nu sunt niciodată executate sau parsate de API.
 - **Limite:** rapoarte pe IP, pe cheie și pe cont.
 
+## Actualizări
+
+O actualizare ajunge la jucători numai dacă trece de toate aceste verificări:
+- build-ul public, cu atestare de proveniență;
+- verificarea manuală a draft-ului;
+- manifestul semnat Ed25519 cu o cheie offline (cheile publice sunt în aplicație);
+- aprobarea în panoul ALL4ONE, cu perioadă de anunț.
+
+Înainte să pornească installer-ul, aplicația verifică semnătura manifestului, mărimea și SHA-256. Nu instalează nimic fără acordul jucătorului. Detalii: [UPDATES.md](UPDATES.md).
+
 Ce poate face cineva cu aplicația modificată: să trimită pentru propriul crash, de pe propriul IP, un fișier care trece validarea. Atât.
 
 Protocolul complet: [docs/protocol.md](docs/protocol.md).

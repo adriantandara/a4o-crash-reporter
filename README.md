@@ -31,6 +31,7 @@ Fiecare raport trimis apare în **Istoricul rapoartelor**, din meniul aplicație
 - **Cod sursă:** tot codul e aici, scris în Rust, cu puține dependențe: `windows` (Microsoft), `ed25519-dalek`, `sha2`, `miniz_oxide`, `serde_json`. Conexiunea HTTPS folosește WinHTTP din Windows.
 - **Build public:** fiecare versiune e compilată de GitHub Actions din tag-ul publicat. Pentru fiecare fișier publicăm o atestare de proveniență (`gh attestation verify <fisier> --repo adriantandara/a4o-crash-reporter`).
 - **VirusTotal:** fiecare release are linkul de scanare pentru `.exe` și `.msi`.
+- **Manifest semnat:** fiecare versiune are un `release.json` semnat cu o cheie offline. Aplicația și serverul îl verifică înainte să ofere versiunea.
 - **Semnătură digitală:** release-urile vor fi semnate prin SignPath Foundation, după aprobarea proiectului.
 - **Sume de control:** `SHA256SUMS.txt` în fiecare release.
 
@@ -42,6 +43,10 @@ Dezinstalarea din *Setări → Aplicații* oprește aplicația și șterge:
 - programul;
 - pornirea automată;
 - datele locale din `%LOCALAPPDATA%\ALL4ONE\CrashReporter` (setările, cheia PC-ului, istoricul și jurnalul).
+
+## Actualizări
+
+Actualizăm aplicația doar când e nevoie și anunțăm fiecare versiune înainte să apară. Aplicația te anunță când apare o versiune nouă, dar nu instalează nimic fără acordul tău; verificarea o poți opri din meniu. Înainte de instalare, fiecare versiune e verificată cu semnătura noastră și cu SHA-256. Detalii: [UPDATES.md](UPDATES.md). Pentru echipă: [docs/releasing.md](docs/releasing.md).
 
 ## Datele tale
 

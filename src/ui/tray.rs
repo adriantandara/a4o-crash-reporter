@@ -12,11 +12,12 @@ use windows::Win32::UI::WindowsAndMessaging::{
     FindWindowW, GetCursorPos, GetMessageW, HMENU, IDYES, MB_ICONQUESTION, MB_YESNO, MF_CHECKED, MF_GRAYED,
     MF_SEPARATOR, MF_STRING, MSG, MessageBoxW, PostMessageW, PostQuitMessage, RegisterClassW, RegisterWindowMessageW,
     SetForegroundWindow, TPM_BOTTOMALIGN, TPM_RIGHTBUTTON, TrackPopupMenu, TranslateMessage, WINDOW_EX_STYLE, WM_APP,
-    WM_CLOSE, WM_COMMAND, WM_CONTEXTMENU, WM_DESTROY, WM_LBUTTONUP, WM_NULL, WM_RBUTTONUP, WNDCLASSW, WS_OVERLAPPED,
+    WM_CLOSE, WM_COMMAND, WM_CONTEXTMENU, WM_DESTROY, WM_LBUTTONUP, WM_NULL, WM_RBUTTONUP, WM_TIMER, WNDCLASSW,
+    WS_OVERLAPPED,
 };
 use windows::core::{HSTRING, PCWSTR, w};
 
-use super::icon;
+use super::{icon, updates};
 use crate::config;
 use crate::fivem::watcher;
 use crate::net::api;
@@ -26,6 +27,7 @@ use crate::system::{autostart, shell};
 const WINDOW_CLASS: PCWSTR = w!("ALL4ONE.CrashReporter.Tray");
 const WM_TRAY: u32 = WM_APP + 1;
 const WM_PROCESS_EXIT: u32 = WM_APP + 2;
+const WM_UPDATE_RESULT: u32 = WM_APP + 3;
 const TRAY_ID: u32 = 1;
 
 const MENU_PAUSE: usize = 10;
@@ -36,6 +38,7 @@ const MENU_SOURCE: usize = 14;
 const MENU_PRIVACY: usize = 15;
 const MENU_WITHDRAW: usize = 16;
 const MENU_EXIT: usize = 17;
+const MENU_UPDATES_POLICY: usize = 18;
 
 static WINDOW: AtomicIsize = AtomicIsize::new(0);
 static TASKBAR_CREATED: AtomicIsize = AtomicIsize::new(0);
@@ -46,6 +49,7 @@ pub fn run() {
     WINDOW.store(hwnd.0 as isize, Ordering::SeqCst);
     add_icon(hwnd);
     watcher::start();
+    updates::schedule(hwnd);
 
     let mut message = MSG::default();
     while unsafe { GetMessageW(&mut message, None, 0, 0) }.as_bool() {
@@ -83,6 +87,14 @@ pub fn post_process_exit(pid: u32) {
     if let Some(hwnd) = window() {
         unsafe {
             let _ = PostMessageW(Some(hwnd), WM_PROCESS_EXIT, WPARAM(pid as usize), LPARAM(0));
+        }
+    }
+}
+
+pub fn post_update_result(result: usize, manual: bool) {
+    if let Some(hwnd) = window() {
+        unsafe {
+            let _ = PostMessageW(Some(hwnd), WM_UPDATE_RESULT, WPARAM(result), LPARAM(manual as isize));
         }
     }
 }
@@ -192,6 +204,14 @@ unsafe extern "system" fn window_proc(hwnd: HWND, message: u32, wparam: WPARAM, 
             watcher::on_process_exit(wparam.0 as u32);
             LRESULT(0)
         }
+        WM_UPDATE_RESULT => {
+            updates::on_result(wparam.0, lparam.0 != 0);
+            LRESULT(0)
+        }
+        WM_TIMER if wparam.0 == updates::TIMER_ID => {
+            updates::on_timer(hwnd);
+            LRESULT(0)
+        }
         WM_DESTROY => {
             unsafe { PostQuitMessage(0) };
             LRESULT(0)
@@ -215,6 +235,7 @@ fn show_menu(hwnd: HWND) {
         add_item(menu, 0, &title, false, true);
         add_item(menu, 0, status_text(), false, true);
         add_separator(menu);
+        updates::append_menu(menu);
         add_item(menu, MENU_PAUSE, "Pune pe pauza", paused, false);
         add_item(
             menu,
@@ -224,10 +245,12 @@ fn show_menu(hwnd: HWND) {
             false,
         );
         add_item(menu, MENU_AUTOSTART, "Porneste odata cu Windows", autostart, false);
+        updates::append_settings(menu);
         add_separator(menu);
         add_item(menu, MENU_HISTORY, "Istoricul rapoartelor", false, false);
         add_item(menu, MENU_SOURCE, "Codul sursa", false, false);
         add_item(menu, MENU_PRIVACY, "Politica de confidentialitate", false, false);
+        add_item(menu, MENU_UPDATES_POLICY, "Politica de actualizari", false, false);
         add_separator(menu);
         add_item(menu, MENU_WITHDRAW, "Retrage acordul si sterge datele", false, false);
         add_item(menu, MENU_EXIT, "Iesire", false, false);
@@ -249,7 +272,7 @@ fn show_menu(hwnd: HWND) {
     }
 }
 
-unsafe fn add_item(menu: HMENU, id: usize, text: &str, checked: bool, disabled: bool) {
+pub(super) unsafe fn add_item(menu: HMENU, id: usize, text: &str, checked: bool, disabled: bool) {
     let mut flags = MF_STRING;
     if checked {
         flags |= MF_CHECKED;
@@ -260,11 +283,14 @@ unsafe fn add_item(menu: HMENU, id: usize, text: &str, checked: bool, disabled: 
     let _ = unsafe { AppendMenuW(menu, flags, id, &HSTRING::from(text)) };
 }
 
-unsafe fn add_separator(menu: HMENU) {
+pub(super) unsafe fn add_separator(menu: HMENU) {
     let _ = unsafe { AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null()) };
 }
 
 fn handle_command(hwnd: HWND, id: usize) {
+    if updates::handle_command(hwnd, id) {
+        return;
+    }
     match id {
         MENU_PAUSE => {
             settings::set(settings::PAUSED, !settings::get_bool(settings::PAUSED, false));
@@ -289,6 +315,7 @@ fn handle_command(hwnd: HWND, id: usize) {
         }
         MENU_SOURCE => shell::open_url(config::REPOSITORY_URL),
         MENU_PRIVACY => shell::open_url(config::PRIVACY_URL),
+        MENU_UPDATES_POLICY => shell::open_url(config::UPDATES_URL),
         MENU_WITHDRAW => {
             if confirm_withdraw(hwnd) {
                 api::forget_device();

@@ -113,6 +113,38 @@ Este semnat. Serverul marchează cheia ca retrasă și dezleagă cheia de cont. 
 | 429 | limită depășită | nu reîncearcă |
 | 5xx / rețea | eroare temporară | reîncearcă după 15 s și apoi după 60 s |
 
+## Endpoint-uri publice
+
+Nu cer autentificare și sunt făcute pentru aplicație și pentru pagina de pe all4one.ro:
+
+- `GET https://ucp.all4one.ro/crash-reporter/latest` întoarce JSON, cu `Access-Control-Allow-Origin: *` și cache de 5 minute:
+
+  ```json
+  {
+    "product": "ALL4ONE Crash Reporter",
+    "current": {
+      "version": "0.2.0",
+      "published_at": "…",
+      "available_from": "…",
+      "notes_url": "https://github.com/…/releases/tag/v0.2.0",
+      "download_url": "https://ucp.all4one.ro/crash-reporter/download",
+      "msi": { "name": "…", "size": 1234, "sha256": "…", "url": "https://github.com/…" },
+      "exe": { "name": "…", "size": 1234, "sha256": "…", "url": "https://github.com/…" },
+      "manifest": "<release.json în base64>",
+      "signature": "<semnătura Ed25519, base64url>"
+    },
+    "upcoming": { "version": "0.3.0", "available_from": "…", "notes_url": "…" },
+    "repository_url": "…",
+    "privacy_url": "…",
+    "updates_url": "…"
+  }
+  ```
+
+  `current` este cea mai nouă versiune aprobată a cărei perioadă de anunț a trecut. `upcoming` este o versiune aprobată care va deveni disponibilă la `available_from`. Fiecare poate lipsi (`null`).
+- `GET https://ucp.all4one.ro/crash-reporter/download` face redirect `302` la MSI-ul versiunii `current` de pe GitHub. Răspunde `404` dacă nu există nicio versiune aprobată.
+
+Serverul ia release-urile publicate (nu draft-urile) de la API-ul GitHub, cu cache de 10 minute. Ia în calcul doar release-urile cu `release.json` semnat valid, ale căror fișiere au exact mărimea din manifest.
+
 ## Păstrare
 
 Un job zilnic șterge rapoartele (fișiere și rânduri) mai vechi de 90 de zile și rapoartele `pending` mai vechi de o oră.

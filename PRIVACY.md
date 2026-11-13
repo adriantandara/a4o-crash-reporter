@@ -21,6 +21,10 @@ Raportul se leagă de contul tău de pe serverul ALL4ONE, ca să putem vedea dac
 
 **Nu colectăm:** fișiere personale, alte fișiere din Descărcări, `launcher.log`, `socialclub.log`, parole, crash-uri de pe alte servere.
 
+## Verificarea actualizărilor
+
+Dacă nu oprești opțiunea din meniu, aplicația verifică o dată la 12 ore dacă există o versiune nouă: o cerere la `ucp.all4one.ro`, fără date despre tine. Serverul vede doar adresa IP și versiunea aplicației și nu le salvează legat de contul tău. Installer-ul se descarcă de pe GitHub. Detalii: [UPDATES.md](UPDATES.md).
+
 ## Temeiul legal
 
 Consimțământul tău (art. 6 alin. (1) lit. a) din GDPR), pe care îl dai în aplicație și îl poți retrage oricând.

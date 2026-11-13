@@ -54,7 +54,7 @@
 
     <InstallExecuteSequence>
       <Custom Action="PurgeUserData" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
-      <Custom Action="LaunchApplication" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt;= 5" />
+      <Custom Action="LaunchApplication" After="InstallFinalize" Condition="NOT REMOVE" />
     </InstallExecuteSequence>
   </Package>
 </Wix>

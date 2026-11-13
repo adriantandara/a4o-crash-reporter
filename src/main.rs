@@ -7,6 +7,7 @@ mod report;
 mod storage;
 mod system;
 mod ui;
+mod update;
 
 use system::instance::SingleInstance;
 

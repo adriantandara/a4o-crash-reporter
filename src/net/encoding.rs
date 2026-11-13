@@ -17,6 +17,26 @@ pub fn base64_url(bytes: &[u8]) -> String {
     out
 }
 
+pub fn decode_base64(text: &str) -> Option<Vec<u8>> {
+    let mut bits = 0u32;
+    let mut count = 0;
+    let mut out = Vec::with_capacity(text.len() * 3 / 4);
+    for c in text.trim().bytes().filter(|&c| c != b'=') {
+        let value = match c {
+            b'+' => 62,
+            b'/' => 63,
+            _ => BASE64_URL.iter().position(|&a| a == c)? as u32,
+        };
+        bits = (bits << 6) | value;
+        count += 6;
+        if count >= 8 {
+            count -= 8;
+            out.push((bits >> count) as u8);
+        }
+    }
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -28,6 +48,15 @@ mod tests {
         assert_eq!(base64_url(b"fo"), "Zm8");
         assert_eq!(base64_url(b"foo"), "Zm9v");
         assert_eq!(base64_url(&[0xfb, 0xff]), "-_8");
+    }
+
+    #[test]
+    fn decodes_both_alphabets() {
+        assert_eq!(decode_base64("Zm9v").unwrap(), b"foo");
+        assert_eq!(decode_base64("Zm8=").unwrap(), b"fo");
+        assert_eq!(decode_base64("-_8").unwrap(), [0xfb, 0xff]);
+        assert_eq!(decode_base64("+/8=").unwrap(), [0xfb, 0xff]);
+        assert!(decode_base64("Zm!v").is_none());
     }
 
     #[test]

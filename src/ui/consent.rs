@@ -25,6 +25,7 @@ const DETAILS: &str = "Ce face, doar după ce accepți:\n\
 • verifică dacă FiveM rulează și dacă apare fereastra lui de eroare;\n\
 • citește din FiveM ultimul server pe care ai jucat, ca să ignore celelalte servere;\n\
 • apasă „Save information” în fereastra de eroare și o închide după salvare (poți dezactiva închiderea);\n\
+• verifică o dată la 12 ore dacă există o versiune nouă a aplicației (doar te anunță, nu instalează nimic fără acordul tău; poți opri verificarea);\n\
 • din arhiva salvată de FiveM în Descărcări trimite doar fișierul .dmp, crashometry.json (fără Rockstar ID) \
 și jurnalul CitizenFX, din care elimină numele și calea contului tău de Windows.\n\n\
 Ce conține un dump: o parte din memoria jocului din momentul crash-ului. Poate include numele tău din joc, \

@@ -7,6 +7,9 @@ license = "MIT"
 repository = "https://github.com/adriantandara/a4o-crash-reporter"
 publish = false
 
+[workspace]
+members = [".", "tools/release-sign"]
+
 [dependencies]
 ed25519-dalek = { version = "2.2", default-features = false, features = ["std", "zeroize"] }
 miniz_oxide = { version = "0.8", features = ["std"] }
@@ -21,6 +24,7 @@ features = [
     "Win32_Networking_WinHttp",
     "Win32_Security",
     "Win32_Security_Cryptography",
+    "Win32_Security_WinTrust",
     "Win32_System_Com",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_LibraryLoader",

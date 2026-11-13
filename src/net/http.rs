@@ -12,6 +12,7 @@ use windows::core::{HSTRING, PCWSTR};
 
 use crate::config;
 
+const HTTPS_PORT: u16 = 443;
 const CHUNK_SIZE: usize = 64 * 1024;
 const MAX_RESPONSE_BYTES: usize = 256 * 1024;
 
@@ -21,6 +22,33 @@ pub struct Response {
 }
 
 pub struct RequestError(pub String);
+
+pub fn send(method: &str, path: &str, headers: &[(&str, String)], body: &[u8]) -> Result<Response, RequestError> {
+    let exchange = Exchange::start(config::API_HOST, method, path, headers, body)?;
+    let status = exchange.status()?;
+    let mut body = Vec::new();
+    exchange.read(|chunk| {
+        if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
+            return Err("raspunsul serverului este prea mare".into());
+        }
+        body.extend_from_slice(chunk);
+        Ok(())
+    })?;
+    Ok(Response { status, body })
+}
+
+pub fn download(url: &str, mut sink: impl FnMut(&[u8]) -> Result<(), String>) -> Result<(), RequestError> {
+    let rest = url
+        .strip_prefix("https://")
+        .ok_or_else(|| RequestError("doar adrese HTTPS".into()))?;
+    let (host, path) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
+    let exchange = Exchange::start(host, "GET", if path.is_empty() { "/" } else { path }, &[], &[])?;
+    let status = exchange.status()?;
+    if status != 200 {
+        return Err(RequestError(format!("descarcarea a raspuns cu {status}")));
+    }
+    exchange.read(&mut sink)
+}
 
 struct Handle(*mut c_void);
 
@@ -45,87 +73,114 @@ impl Drop for Handle {
     }
 }
 
-pub fn send(method: &str, path: &str, headers: &[(&str, String)], body: &[u8]) -> Result<Response, RequestError> {
-    unsafe {
-        let session = Handle::new(
-            WinHttpOpen(
-                &HSTRING::from(config::USER_AGENT),
-                WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-                PCWSTR::null(),
-                PCWSTR::null(),
-                0,
-            ),
-            "deschidere sesiune",
-        )?;
-        restrict_protocols(&session);
-        WinHttpSetTimeouts(session.0, 10_000, 15_000, 60_000, 60_000).map_err(fail("timeout"))?;
+struct Exchange {
+    request: Handle,
+    _connection: Handle,
+    _session: Handle,
+}
 
-        let connection = Handle::new(
-            WinHttpConnect(session.0, &HSTRING::from(config::API_HOST), config::API_PORT, 0),
-            "conectare",
-        )?;
-        let request = Handle::new(
-            WinHttpOpenRequest(
-                connection.0,
-                &HSTRING::from(method),
-                &HSTRING::from(path),
-                PCWSTR::null(),
-                PCWSTR::null(),
-                ptr::null(),
-                WINHTTP_FLAG_SECURE,
-            ),
-            "cerere",
-        )?;
+impl Exchange {
+    fn start(
+        host: &str,
+        method: &str,
+        path: &str,
+        headers: &[(&str, String)],
+        body: &[u8],
+    ) -> Result<Self, RequestError> {
+        unsafe {
+            let session = Handle::new(
+                WinHttpOpen(
+                    &HSTRING::from(config::USER_AGENT),
+                    WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+                    PCWSTR::null(),
+                    PCWSTR::null(),
+                    0,
+                ),
+                "deschidere sesiune",
+            )?;
+            restrict_protocols(&session);
+            WinHttpSetTimeouts(session.0, 10_000, 15_000, 60_000, 60_000).map_err(fail("timeout"))?;
 
-        let header_text: String = headers
-            .iter()
-            .map(|(name, value)| format!("{name}: {value}\r\n"))
-            .collect();
-        let header_wide: Vec<u16> = header_text.encode_utf16().collect();
-        WinHttpSendRequest(request.0, Some(&header_wide), None, 0, body.len() as u32, 0).map_err(fail("trimitere"))?;
+            let connection = Handle::new(
+                WinHttpConnect(session.0, &HSTRING::from(host), HTTPS_PORT, 0),
+                "conectare",
+            )?;
+            let request = Handle::new(
+                WinHttpOpenRequest(
+                    connection.0,
+                    &HSTRING::from(method),
+                    &HSTRING::from(path),
+                    PCWSTR::null(),
+                    PCWSTR::null(),
+                    ptr::null(),
+                    WINHTTP_FLAG_SECURE,
+                ),
+                "cerere",
+            )?;
 
-        for chunk in body.chunks(CHUNK_SIZE) {
-            let mut written = 0;
-            WinHttpWriteData(
-                request.0,
-                Some(chunk.as_ptr() as *const c_void),
-                chunk.len() as u32,
-                &mut written,
-            )
-            .map_err(fail("upload"))?;
+            let header_text: String = headers
+                .iter()
+                .map(|(name, value)| format!("{name}: {value}\r\n"))
+                .collect();
+            let header_wide: Vec<u16> = header_text.encode_utf16().collect();
+            let header_arg = (!header_wide.is_empty()).then_some(header_wide.as_slice());
+            WinHttpSendRequest(request.0, header_arg, None, 0, body.len() as u32, 0).map_err(fail("trimitere"))?;
+
+            for chunk in body.chunks(CHUNK_SIZE) {
+                let mut written = 0;
+                WinHttpWriteData(
+                    request.0,
+                    Some(chunk.as_ptr() as *const c_void),
+                    chunk.len() as u32,
+                    &mut written,
+                )
+                .map_err(fail("upload"))?;
+            }
+            WinHttpReceiveResponse(request.0, ptr::null_mut()).map_err(fail("raspuns"))?;
+
+            Ok(Self {
+                request,
+                _connection: connection,
+                _session: session,
+            })
         }
-        WinHttpReceiveResponse(request.0, ptr::null_mut()).map_err(fail("raspuns"))?;
+    }
 
+    fn status(&self) -> Result<u32, RequestError> {
         let mut status = 0u32;
-        let mut status_size = size_of::<u32>() as u32;
-        WinHttpQueryHeaders(
-            request.0,
-            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-            PCWSTR::null(),
-            Some(&mut status as *mut u32 as *mut c_void),
-            &mut status_size,
-            ptr::null_mut(),
-        )
+        let mut size = size_of::<u32>() as u32;
+        unsafe {
+            WinHttpQueryHeaders(
+                self.request.0,
+                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                PCWSTR::null(),
+                Some(&mut status as *mut u32 as *mut c_void),
+                &mut size,
+                ptr::null_mut(),
+            )
+        }
         .map_err(fail("status"))?;
+        Ok(status)
+    }
 
-        let mut body = Vec::new();
-        let mut buffer = vec![0u8; 8 * 1024];
+    fn read(&self, mut sink: impl FnMut(&[u8]) -> Result<(), String>) -> Result<(), RequestError> {
+        let mut buffer = vec![0u8; CHUNK_SIZE];
         loop {
             let mut read = 0;
-            WinHttpReadData(
-                request.0,
-                buffer.as_mut_ptr() as *mut c_void,
-                buffer.len() as u32,
-                &mut read,
-            )
-            .map_err(fail("citire"))?;
-            if read == 0 || body.len() >= MAX_RESPONSE_BYTES {
-                break;
+            unsafe {
+                WinHttpReadData(
+                    self.request.0,
+                    buffer.as_mut_ptr() as *mut c_void,
+                    buffer.len() as u32,
+                    &mut read,
+                )
             }
-            body.extend_from_slice(&buffer[..read as usize]);
+            .map_err(fail("citire"))?;
+            if read == 0 {
+                return Ok(());
+            }
+            sink(&buffer[..read as usize]).map_err(RequestError)?;
         }
-
-        Ok(Response { status, body })
     }
 }
 

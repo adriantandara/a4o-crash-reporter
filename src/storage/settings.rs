@@ -13,6 +13,9 @@ pub const CONSENT_DATE: &str = "consent_date";
 pub const PAUSED: &str = "paused";
 pub const AUTO_CLOSE: &str = "auto_close_dialog";
 pub const AUTOSTART: &str = "autostart";
+pub const UPDATE_CHECK: &str = "update_check";
+pub const SKIPPED_VERSION: &str = "skipped_version";
+pub const NOTIFIED_VERSION: &str = "notified_version";
 
 fn file() -> PathBuf {
     paths::data_dir().join("settings.json")
@@ -36,6 +39,10 @@ pub fn get_bool(key: &str, default: bool) -> bool {
 
 pub fn get_u64(key: &str) -> Option<u64> {
     with(|map| map.get(key).and_then(Value::as_u64))
+}
+
+pub fn get_string(key: &str) -> Option<String> {
+    with(|map| map.get(key).and_then(Value::as_str).map(str::to_owned))
 }
 
 pub fn set(key: &str, value: impl Into<Value>) {
