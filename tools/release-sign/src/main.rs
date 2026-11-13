@@ -43,7 +43,7 @@ fn keygen(path: &Path) -> Result<(), String> {
         return Err(format!("{} exista deja", path.display()));
     }
     let mut seed = [0u8; 32];
-    getrandom::getrandom(&mut seed).map_err(|e| e.to_string())?;
+    getrandom::fill(&mut seed).map_err(|e| e.to_string())?;
     let key = SigningKey::from_bytes(&seed);
     write_private(path, &hex(&seed))?;
     println!("{}", base64_url(key.verifying_key().as_bytes()));
