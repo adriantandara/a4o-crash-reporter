@@ -89,7 +89,7 @@ jobs:
         shell: bash
         run: (cd dist && sha256sum *.exe *.msi > SHA256SUMS.txt)
 
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             dist/*.exe
