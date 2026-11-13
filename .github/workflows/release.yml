@@ -98,7 +98,7 @@ jobs:
       - name: VirusTotal
         id: virustotal
         if: env.VT_API_KEY != ''
-        uses: crazy-max/ghaction-virustotal@v4
+        uses: crazy-max/ghaction-virustotal@v5
         with:
           vt_api_key: ${{ secrets.VT_API_KEY }}
           files: |
