@@ -8,10 +8,14 @@ permissions:
   contents: write
   id-token: write
   attestations: write
+  actions: read
 
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      VT_API_KEY: ${{ secrets.VT_API_KEY }}
+      SIGNPATH_ENABLED: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -23,8 +27,29 @@ jobs:
           grep -q "^version = \"$version\"" Cargo.toml || { echo "Tag-ul nu corespunde cu Cargo.toml"; exit 1; }
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - run: cargo test --release --locked
+      - run: cargo test --release --locked --workspace
       - run: cargo build --release --locked
+
+      - name: Exe pentru semnare
+        id: unsigned-exe
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-exe
+          path: target/release/a4o-crash-reporter.exe
+
+      - name: Semnare exe (SignPath)
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: a4o-crash-reporter
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: exe
+          github-artifact-id: ${{ steps.unsigned-exe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: target/release
 
       - name: Installer
         shell: bash
@@ -38,7 +63,31 @@ jobs:
             -d Version=${{ steps.version.outputs.version }} \
             -o "dist/ALL4ONE-Crash-Reporter-${{ steps.version.outputs.version }}.msi"
           rm -f dist/*.wixpdb
-          (cd dist && sha256sum *.exe *.msi > SHA256SUMS.txt)
+
+      - name: Msi pentru semnare
+        id: unsigned-msi
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-msi
+          path: dist/*.msi
+
+      - name: Semnare msi (SignPath)
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: a4o-crash-reporter
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: msi
+          github-artifact-id: ${{ steps.unsigned-msi.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: dist
+
+      - name: Sume de control
+        shell: bash
+        run: (cd dist && sha256sum *.exe *.msi > SHA256SUMS.txt)
 
       - uses: actions/attest-build-provenance@v2
         with:
@@ -48,6 +97,7 @@ jobs:
 
       - name: VirusTotal
         id: virustotal
+        if: env.VT_API_KEY != ''
         uses: crazy-max/ghaction-virustotal@v4
         with:
           vt_api_key: ${{ secrets.VT_API_KEY }}
@@ -65,9 +115,15 @@ jobs:
             echo
             echo "Atestare de build: \`gh attestation verify <fisier> --repo ${{ github.repository }}\`"
             echo
-            echo "### VirusTotal"
-            echo
-            echo "${{ steps.virustotal.outputs.analysis }}" | tr ',' '\n' | sed -E 's#^([^=]+)=(.*)$#- [\1](\2)#; s#dist/##'
+            if [ "$SIGNPATH_ENABLED" = "true" ]; then
+              echo "Semnătură digitală: SignPath Foundation."
+              echo
+            fi
+            if [ -n "${{ steps.virustotal.outputs.analysis }}" ]; then
+              echo "### VirusTotal"
+              echo
+              echo "${{ steps.virustotal.outputs.analysis }}" | tr ',' '\n' | sed -E 's#^([^=]+)=(.*)$#- [\1](\2)#; s#dist/##'
+            fi
           } > dist/notes.md
 
       - uses: softprops/action-gh-release@v2

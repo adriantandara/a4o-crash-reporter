@@ -3,16 +3,22 @@ use std::ptr;
 
 use windows::Win32::Networking::WinHttp::{
     WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_FLAG_SECURE, WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2,
-    WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3, WINHTTP_OPTION_SECURE_PROTOCOLS, WINHTTP_QUERY_FLAG_NUMBER,
-    WINHTTP_QUERY_STATUS_CODE, WinHttpCloseHandle, WinHttpConnect, WinHttpOpen, WinHttpOpenRequest,
-    WinHttpQueryHeaders, WinHttpReadData, WinHttpReceiveResponse, WinHttpSendRequest, WinHttpSetOption,
-    WinHttpSetTimeouts, WinHttpWriteData,
+    WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3, WINHTTP_OPEN_REQUEST_FLAGS, WINHTTP_OPTION_SECURE_PROTOCOLS,
+    WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_QUERY_STATUS_CODE, WinHttpCloseHandle, WinHttpConnect, WinHttpOpen,
+    WinHttpOpenRequest, WinHttpQueryHeaders, WinHttpReadData, WinHttpReceiveResponse, WinHttpSendRequest,
+    WinHttpSetOption, WinHttpSetTimeouts, WinHttpWriteData,
 };
 use windows::core::{HSTRING, PCWSTR};
 
 use crate::config;
 
 const HTTPS_PORT: u16 = 443;
+
+struct Endpoint<'a> {
+    host: &'a str,
+    port: u16,
+    secure: bool,
+}
 const CHUNK_SIZE: usize = 64 * 1024;
 const MAX_RESPONSE_BYTES: usize = 256 * 1024;
 
@@ -24,7 +30,12 @@ pub struct Response {
 pub struct RequestError(pub String);
 
 pub fn send(method: &str, path: &str, headers: &[(&str, String)], body: &[u8]) -> Result<Response, RequestError> {
-    let exchange = Exchange::start(config::API_HOST, method, path, headers, body)?;
+    let api = Endpoint {
+        host: config::API_HOST,
+        port: config::API_PORT,
+        secure: config::API_SECURE,
+    };
+    let exchange = Exchange::start(&api, method, path, headers, body)?;
     let status = exchange.status()?;
     let mut body = Vec::new();
     exchange.read(|chunk| {
@@ -42,7 +53,12 @@ pub fn download(url: &str, mut sink: impl FnMut(&[u8]) -> Result<(), String>) ->
         .strip_prefix("https://")
         .ok_or_else(|| RequestError("doar adrese HTTPS".into()))?;
     let (host, path) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
-    let exchange = Exchange::start(host, "GET", if path.is_empty() { "/" } else { path }, &[], &[])?;
+    let endpoint = Endpoint {
+        host,
+        port: HTTPS_PORT,
+        secure: true,
+    };
+    let exchange = Exchange::start(&endpoint, "GET", if path.is_empty() { "/" } else { path }, &[], &[])?;
     let status = exchange.status()?;
     if status != 200 {
         return Err(RequestError(format!("descarcarea a raspuns cu {status}")));
@@ -81,7 +97,7 @@ struct Exchange {
 
 impl Exchange {
     fn start(
-        host: &str,
+        endpoint: &Endpoint,
         method: &str,
         path: &str,
         headers: &[(&str, String)],
@@ -102,7 +118,7 @@ impl Exchange {
             WinHttpSetTimeouts(session.0, 10_000, 15_000, 60_000, 60_000).map_err(fail("timeout"))?;
 
             let connection = Handle::new(
-                WinHttpConnect(session.0, &HSTRING::from(host), HTTPS_PORT, 0),
+                WinHttpConnect(session.0, &HSTRING::from(endpoint.host), endpoint.port, 0),
                 "conectare",
             )?;
             let request = Handle::new(
@@ -113,7 +129,11 @@ impl Exchange {
                     PCWSTR::null(),
                     PCWSTR::null(),
                     ptr::null(),
-                    WINHTTP_FLAG_SECURE,
+                    if endpoint.secure {
+                        WINHTTP_FLAG_SECURE
+                    } else {
+                        WINHTTP_OPEN_REQUEST_FLAGS(0)
+                    },
                 ),
                 "cerere",
             )?;

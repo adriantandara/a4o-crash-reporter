@@ -35,6 +35,14 @@ Fiecare raport trimis apare în **Istoricul rapoartelor**, din meniul aplicație
 - **Semnătură digitală:** release-urile vor fi semnate prin SignPath Foundation, după aprobarea proiectului.
 - **Sume de control:** `SHA256SUMS.txt` în fiecare release.
 
+## Politica de semnare a codului
+
+Semnarea gratuită a codului: [SignPath.io](https://about.signpath.io), certificat oferit de [SignPath Foundation](https://signpath.org).
+
+- Autori și aprobatori: [adriantandara](https://github.com/adriantandara) (owner ALL4ONE). Fiecare release e aprobat manual.
+- Se semnează doar fișierele construite de GitHub Actions din codul acestui repository, la un tag `v*`.
+- Aplicația trimite date doar echipei ALL4ONE și doar cu acordul utilizatorului; detalii în [PRIVACY.md](PRIVACY.md).
+
 ## Instalare și dezinstalare
 
 Descarci `ALL4ONE-Crash-Reporter-<versiune>.msi` din [Releases](https://github.com/adriantandara/a4o-crash-reporter/releases) și îl rulezi. Se instalează în `%LOCALAPPDATA%\Programs\ALL4ONE Crash Reporter`.

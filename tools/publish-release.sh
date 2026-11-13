@@ -3,6 +3,9 @@ set -euo pipefail
 
 version="${1:?folosire: tools/publish-release.sh <versiune> [--authenticode]}"
 signing_flag="${2:-}"
+if [ -z "${signing_flag}" ] && gh variable get SIGNPATH_ORGANIZATION_ID --repo adriantandara/a4o-crash-reporter > /dev/null 2>&1; then
+  signing_flag="--authenticode"
+fi
 key="${A4O_RELEASE_KEY:-$HOME/.config/a4o-crash-reporter/release-primary.key}"
 repo="adriantandara/a4o-crash-reporter"
 work="$(mktemp -d)"

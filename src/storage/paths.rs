@@ -5,11 +5,13 @@ use windows::Win32::System::Com::CoTaskMemFree;
 use windows::Win32::UI::Shell::{FOLDERID_Downloads, FOLDERID_LocalAppData, KF_FLAG_DEFAULT, SHGetKnownFolderPath};
 use windows::core::GUID;
 
+use crate::config;
+
 pub fn data_dir() -> &'static PathBuf {
     static DIR: OnceLock<PathBuf> = OnceLock::new();
     DIR.get_or_init(|| {
         let base = known_folder(&FOLDERID_LocalAppData).unwrap_or_else(std::env::temp_dir);
-        base.join("ALL4ONE").join("CrashReporter")
+        base.join("ALL4ONE").join(config::DATA_FOLDER)
     })
 }
 

@@ -7,6 +7,9 @@ const RUN_KEY: PCWSTR = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
 const VALUE_NAME: PCWSTR = w!("ALL4ONE Crash Reporter");
 
 pub fn set_enabled(enabled: bool) {
+    if cfg!(feature = "local") {
+        return;
+    }
     let Some(key) = open_run_key() else { return };
     unsafe {
         if enabled {
