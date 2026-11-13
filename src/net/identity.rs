@@ -106,3 +106,23 @@ fn blob(data: &[u8]) -> CRYPT_INTEGER_BLOB {
         pbData: data.as_ptr() as *mut u8,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signature_matches_server_vector() {
+        let key = DeviceKey {
+            signing_key: SigningKey::from_bytes(&[7u8; 32]),
+        };
+        let body_hash = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
+        let payload =
+            format!("A4OCR1\nPOST\n/api/crash/v1/claim\n1794510651\n00112233445566778899aabbccddeeff\n{body_hash}");
+        assert_eq!(key.public_key(), "6kpsY-KcUgq-9VB7Ey7F-ZVHdq6-vnuSQh7qaRRG0iw");
+        assert_eq!(
+            key.sign(payload.as_bytes()),
+            "b-hA2prXUd5B4C09qNYkTbzIDjoWDZ7AlF-36GX17daIO4_lY05hURcdFFW25akkrD4UdWbYFjQzdaSlTzufCg"
+        );
+    }
+}
