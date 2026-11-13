@@ -1,0 +1,60 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package
+    Name="ALL4ONE Crash Reporter"
+    Manufacturer="ALL4ONE Romania"
+    Version="$(var.Version)"
+    UpgradeCode="1e4f3c8b-9913-452d-a4ed-71b9ca9404eb"
+    Scope="perUser"
+    Language="1048"
+    Codepage="1250">
+
+    <MajorUpgrade DowngradeErrorMessage="O versiune mai noua a ALL4ONE Crash Reporter este deja instalata." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="assets\a4o.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/all4one-romania/a4o-crash-reporter" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/all4one-romania/a4o-crash-reporter/issues" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <WixVariable Id="WixUILicenseRtf" Value="installer\license.rtf" />
+    <ui:WixUI Id="WixUI_Minimal" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="ALL4ONE Crash Reporter" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <ComponentGroup Id="Application" Directory="INSTALLFOLDER">
+      <Component Id="Executable">
+        <File Id="AppExe" Source="target\release\a4o-crash-reporter.exe" />
+        <RegistryValue Root="HKCU" Key="Software\ALL4ONE\CrashReporter" Name="InstallPath" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+        <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveProgramsFolder" Directory="ProgramsFolder" On="uninstall" />
+        <RemoveRegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="ALL4ONE Crash Reporter" />
+        <RemoveRegistryKey Root="HKCU" Key="Software\ALL4ONE\CrashReporter" Action="removeOnUninstall" />
+      </Component>
+      <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
+        <Shortcut Id="AppShortcut" Name="ALL4ONE Crash Reporter" Target="[#AppExe]" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+        <RegistryValue Root="HKCU" Key="Software\ALL4ONE\CrashReporter" Name="Shortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="Main">
+      <ComponentGroupRef Id="Application" />
+    </Feature>
+
+    <util:CloseApplication Id="CloseRunningApp" Target="a4o-crash-reporter.exe" CloseMessage="yes" RebootPrompt="no" Timeout="5" />
+
+    <CustomAction Id="PurgeUserData" FileRef="AppExe" ExeCommand="--purge" Execute="immediate" Return="ignore" />
+    <CustomAction Id="LaunchApplication" FileRef="AppExe" ExeCommand="" Execute="immediate" Return="asyncNoWait" />
+
+    <InstallExecuteSequence>
+      <Custom Action="PurgeUserData" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="LaunchApplication" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt;= 5" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>
