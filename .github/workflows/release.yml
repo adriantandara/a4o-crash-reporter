@@ -17,7 +17,7 @@ jobs:
       VT_API_KEY: ${{ secrets.VT_API_KEY }}
       SIGNPATH_ENABLED: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Versiune
         id: version
