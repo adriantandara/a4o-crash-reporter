@@ -2,7 +2,7 @@
 
 ## Raportarea unei probleme
 
-Nu deschide un issue public pentru vulnerabilități. Scrie-ne pe Discord-ul ALL4ONE, la tichete, sau folosește [GitHub Security Advisories](https://github.com/all4one-romania/a4o-crash-reporter/security/advisories/new). Răspundem în 72 de ore.
+Nu deschide un issue public pentru vulnerabilități. Scrie-ne pe Discord-ul ALL4ONE, la tichete, sau folosește [GitHub Security Advisories](https://github.com/adriantandara/a4o-crash-reporter/security/advisories/new). Răspundem în 72 de ore.
 
 ## Modelul de securitate
 

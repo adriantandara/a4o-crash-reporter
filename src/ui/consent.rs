@@ -29,7 +29,7 @@ const DETAILS: &str = "Ce face, doar după ce accepți:\n\
 și jurnalul CitizenFX, din care elimină numele și calea contului tău de Windows.\n\n\
 Ce conține un dump: o parte din memoria jocului din momentul crash-ului. Poate include numele tău din joc, \
 mesaje recente sau identificatori de sesiune FiveM. Nu conține fișierele tale personale.\n\n\
-Unde ajung datele: criptat (HTTPS) la guard.all4one.ro. Raportul este legat de contul tău de pe server, \
+Unde ajung datele: criptat (HTTPS) la ucp.all4one.ro. Raportul este legat de contul tău de pe server, \
 este văzut doar de echipa de dezvoltare, este folosit doar pentru depanare și se șterge automat după 90 de zile.\n\n\
 Ce NU face: nu se injectează în FiveM sau GTA V, nu modifică fișierele jocului, nu citește alte fișiere \
 și nu cere drepturi de administrator.\n\n\

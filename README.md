@@ -29,14 +29,14 @@ Fiecare raport trimis apare în **Istoricul rapoartelor**, din meniul aplicație
 ## Încredere și verificare
 
 - **Cod sursă:** tot codul e aici, scris în Rust, cu puține dependențe: `windows` (Microsoft), `ed25519-dalek`, `sha2`, `miniz_oxide`, `serde_json`. Conexiunea HTTPS folosește WinHTTP din Windows.
-- **Build public:** fiecare versiune e compilată de GitHub Actions din tag-ul publicat. Pentru fiecare fișier publicăm o atestare de proveniență (`gh attestation verify <fisier> --repo all4one-romania/a4o-crash-reporter`).
+- **Build public:** fiecare versiune e compilată de GitHub Actions din tag-ul publicat. Pentru fiecare fișier publicăm o atestare de proveniență (`gh attestation verify <fisier> --repo adriantandara/a4o-crash-reporter`).
 - **VirusTotal:** fiecare release are linkul de scanare pentru `.exe` și `.msi`.
 - **Semnătură digitală:** release-urile vor fi semnate prin SignPath Foundation, după aprobarea proiectului.
 - **Sume de control:** `SHA256SUMS.txt` în fiecare release.
 
 ## Instalare și dezinstalare
 
-Descarci `ALL4ONE-Crash-Reporter-<versiune>.msi` din [Releases](https://github.com/all4one-romania/a4o-crash-reporter/releases) și îl rulezi. Se instalează în `%LOCALAPPDATA%\Programs\ALL4ONE Crash Reporter`.
+Descarci `ALL4ONE-Crash-Reporter-<versiune>.msi` din [Releases](https://github.com/adriantandara/a4o-crash-reporter/releases) și îl rulezi. Se instalează în `%LOCALAPPDATA%\Programs\ALL4ONE Crash Reporter`.
 
 Dezinstalarea din *Setări → Aplicații* oprește aplicația și șterge:
 - programul;

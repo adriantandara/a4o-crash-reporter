@@ -2,14 +2,14 @@ pub const APP_NAME: &str = "ALL4ONE Crash Reporter";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const USER_AGENT: &str = concat!("A4O-CrashReporter/", env!("CARGO_PKG_VERSION"));
 
-pub const API_HOST: &str = "guard.all4one.ro";
+pub const API_HOST: &str = "ucp.all4one.ro";
 pub const API_PORT: u16 = 443;
 pub const API_PREFIX: &str = "/api/crash/v1";
 
 pub const ALLOWED_SERVERS: &[&str] = &["82.22.174.206:30120", "82.22.174.206:30121"];
 
-pub const REPOSITORY_URL: &str = "https://github.com/all4one-romania/a4o-crash-reporter";
-pub const PRIVACY_URL: &str = "https://github.com/all4one-romania/a4o-crash-reporter/blob/main/PRIVACY.md";
+pub const REPOSITORY_URL: &str = "https://github.com/adriantandara/a4o-crash-reporter";
+pub const PRIVACY_URL: &str = "https://github.com/adriantandara/a4o-crash-reporter/blob/main/PRIVACY.md";
 
 pub const CONSENT_VERSION: u64 = 1;
 

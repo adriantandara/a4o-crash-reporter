@@ -1,6 +1,6 @@
 # Protocolul de raportare
 
-Baza: `https://guard.all4one.ro/api/crash/v1`. Doar HTTPS, TLS 1.2 sau 1.3.
+Baza: `https://ucp.all4one.ro/api/crash/v1`. Doar HTTPS, TLS 1.2 sau 1.3.
 
 ## Biletul de crash (pe serverul de joc)
 
