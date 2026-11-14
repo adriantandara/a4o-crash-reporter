@@ -6,7 +6,7 @@ pub fn is_fivem_executable(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
         .map(|name| name.to_ascii_lowercase())
-        .is_some_and(|name| name.starts_with("fivem") && name.ends_with(".exe"))
+        .is_some_and(|name| name.starts_with("fivem") && (name.ends_with(".exe") || !name.contains('.')))
 }
 
 pub fn app_dir(executable: &Path) -> PathBuf {

@@ -1,14 +1,15 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
+const DIALOG_GONE_GRACE: Duration = Duration::from_secs(10);
 
-pub fn find_recent_archive(dir: &Path, since: SystemTime) -> Option<PathBuf> {
-    fs::read_dir(dir)
-        .ok()?
-        .flatten()
+pub fn find_recent_archive(dirs: &[PathBuf], since: SystemTime) -> Option<PathBuf> {
+    dirs.iter()
+        .filter_map(|dir| fs::read_dir(dir).ok())
+        .flat_map(|entries| entries.flatten())
         .filter(|entry| is_crash_archive(&entry.file_name().to_string_lossy()))
         .filter_map(|entry| {
             let modified = entry.metadata().ok()?.modified().ok()?;
@@ -18,11 +19,22 @@ pub fn find_recent_archive(dir: &Path, since: SystemTime) -> Option<PathBuf> {
         .map(|(_, path)| path)
 }
 
-pub fn wait_for_archive(dir: &Path, since: SystemTime, timeout: Duration) -> Option<PathBuf> {
+pub fn wait_for_archive(
+    dirs: &[PathBuf],
+    since: SystemTime,
+    timeout: Duration,
+    dialog_open: impl Fn() -> bool,
+) -> Option<PathBuf> {
     let deadline = Instant::now() + timeout;
+    let mut closed_at: Option<Instant> = None;
     let mut last_seen: Option<(PathBuf, u64)> = None;
     while Instant::now() < deadline {
-        if let Some(path) = find_recent_archive(dir, since) {
+        if dialog_open() {
+            closed_at = None;
+        } else if closed_at.get_or_insert_with(Instant::now).elapsed() > DIALOG_GONE_GRACE {
+            return None;
+        }
+        if let Some(path) = find_recent_archive(dirs, since) {
             let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
             if size > 0 && last_seen.as_ref() == Some(&(path.clone(), size)) {
                 return Some(path);

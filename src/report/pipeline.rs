@@ -6,6 +6,7 @@ use std::time::{Duration, SystemTime};
 
 use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Threading::{GetCurrentThread, SetThreadPriority, THREAD_MODE_BACKGROUND_BEGIN};
+use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 
 use super::bundle::Bundle;
 use super::downloads;
@@ -17,6 +18,7 @@ use crate::ui::tray;
 use crate::{config, log_error, log_info};
 
 const SAVE_TIMEOUT: Duration = Duration::from_secs(15);
+const SAVED_NOTICE_TIMEOUT: Duration = Duration::from_secs(5);
 const AUTOMATIC_SAVE_WAIT: Duration = Duration::from_secs(90);
 const MANUAL_SAVE_WAIT: Duration = Duration::from_secs(600);
 const CLOCK_TOLERANCE: Duration = Duration::from_secs(10);
@@ -44,21 +46,20 @@ pub fn start(dialog: HWND, executable: PathBuf) {
             handled.remove(0);
         }
     }
-    if BUSY.swap(true, Ordering::SeqCst) {
-        return;
-    }
-
-    let spawned = thread::Builder::new().name("crash-report".into()).spawn(move || {
+    let _ = thread::Builder::new().name("crash-report".into()).spawn(move || {
         unsafe {
             let _ = SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
+        }
+        while BUSY.swap(true, Ordering::SeqCst) {
+            if !unsafe { IsWindow(Some(HWND(raw_hwnd as *mut _))) }.as_bool() {
+                return;
+            }
+            thread::sleep(Duration::from_millis(500));
         }
         let result = process_crash(raw_hwnd, &executable);
         BUSY.store(false, Ordering::SeqCst);
         finish(result);
     });
-    if spawned.is_err() {
-        BUSY.store(false, Ordering::SeqCst);
-    }
 }
 
 fn process_crash(raw_hwnd: isize, executable: &Path) -> Result<Outcome, String> {
@@ -69,23 +70,28 @@ fn process_crash(raw_hwnd: isize, executable: &Path) -> Result<Outcome, String> 
     }
     log_info!("crash FiveM detectat pe {server}");
 
-    let downloads_dir = paths::downloads_dir().ok_or("folderul Descarcari nu a fost gasit")?;
+    let mut archive_dirs = vec![std::env::temp_dir()];
+    if let Some(downloads_dir) = paths::downloads_dir() {
+        archive_dirs.push(downloads_dir);
+    }
     let since = SystemTime::now() - CLOCK_TOLERANCE;
     let dialog = CrashDialog::attach(raw_hwnd)?;
 
-    let wait = match downloads::find_recent_archive(&downloads_dir, since) {
+    let wait = match downloads::find_recent_archive(&archive_dirs, since) {
         Some(_) => AUTOMATIC_SAVE_WAIT,
         None => match dialog.press(SAVE_BUTTON, SAVE_TIMEOUT) {
             Ok(()) => AUTOMATIC_SAVE_WAIT,
-            Err(error) => {
+            Err(error) if dialog.is_open() => {
                 log_error!("nu am putut apasa \"{SAVE_BUTTON}\": {error}; astept salvarea manuala");
                 MANUAL_SAVE_WAIT
             }
+            Err(_) => return Err("fereastra de crash a fost inchisa inainte de salvare".into()),
         },
     };
 
-    let archive =
-        downloads::wait_for_archive(&downloads_dir, since, wait).ok_or("FiveM nu a salvat arhiva de crash")?;
+    let archive = downloads::wait_for_archive(&archive_dirs, since, wait, || dialog.is_open())
+        .ok_or("FiveM nu a salvat arhiva de crash")?;
+    dialog.confirm_saved_notice(SAVED_NOTICE_TIMEOUT);
     if settings::get_bool(settings::AUTO_CLOSE, true) {
         dialog.close();
     }
@@ -101,7 +107,10 @@ fn finish(result: Result<Outcome, String>) {
         Ok(Outcome::Sent(crash, Submitted::New(report_id))) => {
             log_info!("raport {report_id} trimis pentru {crash}");
             history::record("trimis", &crash, &format!("raport #{report_id}"));
-            tray::notify("Raport trimis", "Multumim! Crash-ul a ajuns la echipa ALL4ONE.");
+            tray::notify(
+                "Raport salvat si trimis",
+                "Crash-ul a fost salvat si a ajuns la echipa ALL4ONE. Multumim!",
+            );
         }
         Ok(Outcome::Sent(crash, Submitted::Duplicate)) => {
             history::record("deja trimis", &crash, "");

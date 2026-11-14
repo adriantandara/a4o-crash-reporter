@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::path::PathBuf;
 
-use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
 };
@@ -12,9 +12,11 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CHILDID_SELF, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, GA_ROOT, GetAncestor, GetClassNameW, GetWindowTextW,
-    GetWindowThreadProcessId, OBJID_WINDOW, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS,
+    CHILDID_SELF, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, EnumWindows, GA_ROOT, GetAncestor, GetClassNameW,
+    GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible, OBJID_WINDOW, WINEVENT_OUTOFCONTEXT,
+    WINEVENT_SKIPOWNPROCESS,
 };
+use windows::core::BOOL;
 use windows::core::PWSTR;
 
 use super::install;
@@ -42,6 +44,7 @@ pub fn start() {
     let hook = install_hook(EVENT_SYSTEM_FOREGROUND);
     WATCHER.with_borrow_mut(|watcher| watcher.foreground_hook = hook);
     scan_processes();
+    scan_open_dialogs();
 }
 
 pub fn stop() {
@@ -189,6 +192,10 @@ unsafe extern "system" fn on_window_event(
         return;
     }
 
+    consider(hwnd);
+}
+
+fn consider(hwnd: HWND) {
     let mut pid = 0;
     unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
     let Some(executable) = process_path(pid).filter(|path| install::is_fivem_executable(path)) else {
@@ -198,9 +205,35 @@ unsafe extern "system" fn on_window_event(
     if !is_tracked(pid) {
         scan_processes();
     }
-    if is_dialog(hwnd) && window_title(hwnd).starts_with("Error") {
+    if is_dialog(hwnd) && is_crash_dialog(&window_title(hwnd), &executable) {
         pipeline::start(hwnd, executable);
     }
+}
+
+fn scan_open_dialogs() {
+    let mut found: Vec<HWND> = Vec::new();
+    unsafe {
+        let _ = EnumWindows(Some(collect_dialog), LPARAM(&mut found as *mut Vec<HWND> as isize));
+    }
+    for hwnd in found {
+        consider(hwnd);
+    }
+}
+
+unsafe extern "system" fn collect_dialog(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let found = unsafe { &mut *(lparam.0 as *mut Vec<HWND>) };
+    if unsafe { IsWindowVisible(hwnd) }.as_bool() && is_dialog(hwnd) {
+        found.push(hwnd);
+    }
+    BOOL(1)
+}
+
+fn is_crash_dialog(title: &str, executable: &std::path::Path) -> bool {
+    let from_dump_server = executable
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.to_ascii_lowercase().contains("dumpserver"));
+    title.starts_with("Error") || (from_dump_server && title == "FiveM")
 }
 
 fn is_dialog(hwnd: HWND) -> bool {
