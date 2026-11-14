@@ -15,7 +15,6 @@
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/adriantandara/a4o-crash-reporter" />
     <Property Id="ARPHELPLINK" Value="https://github.com/adriantandara/a4o-crash-reporter/issues" />
-    <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="ARPNOREPAIR" Value="1" />
 
     <WixVariable Id="WixUILicenseRtf" Value="installer\license.rtf" />
