@@ -7,7 +7,7 @@ Aplicație Windows, opțională și open source, care trimite echipei ALL4ONE cr
 1. La prima pornire îți arată ce face și îți cere acordul. Fără acord nu face nimic și nu scrie nimic pe disc.
 2. Rulează în fundal, cu o iconiță lângă ceas. Din meniul ei o pui pe pauză, o închizi sau îți retragi acordul.
 3. Când apare fereastra de eroare FiveM, verifică întâi ultimul server pe care ai jucat. Dacă nu e ALL4ONE, nu face nimic.
-4. Dacă e ALL4ONE, apasă „Save information”, așteaptă arhiva salvată de FiveM în Descărcări și închide fereastra de eroare.
+4. Dacă e ALL4ONE, se ocupă singură de tot: apasă „Save information”, confirmă mesajul FiveM, preia arhiva crash-ului și închide fereastra de eroare. Tu nu trebuie să faci nimic.
 5. Din arhivă trimite doar:
    - fișierul `.dmp`;
    - `crashometry.json`, fără Rockstar ID;
